@@ -1,5 +1,6 @@
 # Basic Hasura (Postgres) — First Steps
 
+> Refer to [Hasura basics course](https://hasura.io/learn/graphql/hasura/introduction/).
 > Setup used here: Hasura GraphQL Engine **v2.46.0** + **Postgres 15** (see `docker-compose.yml`).
 > Console: <http://localhost:8080/console> · GraphQL endpoint: `http://localhost:8080/v1/graphql`
 > No admin secret is set, so the console opens directly.
