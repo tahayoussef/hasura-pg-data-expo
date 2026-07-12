@@ -1,0 +1,5 @@
+# files that end up inside Linux containers must keep LF endings on Windows checkouts
+*.sh text eol=lf
+*.sql text eol=lf
+*.py text eol=lf
+*.yml text eol=lf

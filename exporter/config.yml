@@ -1,0 +1,10 @@
+# Dataset config — swapping the data source should only touch this file + sql/transform.sql.
+# NYC TLC trip records: https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page
+# Public data, no API key, stable per-month URLs.
+source:
+  name: nyc_yellow_taxi
+  trips_url_template: "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_{month}.parquet"
+  zones_url: "https://d37ci6vzurychx.cloudfront.net/misc/taxi_zone_lookup.csv"
+  # pinned months, never "latest" — add entries here to backfill (~50 MB / ~3M rows each)
+  months:
+    - "2024-01"

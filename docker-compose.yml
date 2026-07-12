@@ -5,7 +5,15 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
     environment:
-      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgrespassword}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ## uncomment to reach Postgres from the host (psql/DBeaver) on localhost:5433
+    # ports:
+    #   - "5433:5432"
   graphql-engine:
     image: hasura/graphql-engine:v2.46.0
     ports:
@@ -13,9 +21,9 @@ services:
     restart: always
     environment:
       ## postgres database to store Hasura metadata
-      HASURA_GRAPHQL_METADATA_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
+      HASURA_GRAPHQL_METADATA_DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgrespassword}@postgres:5432/postgres
       ## this env var can be used to add the above postgres database to Hasura as a data source. this can be removed/updated based on your needs
-      PG_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
+      PG_DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgrespassword}@postgres:5432/postgres
       ## enable the console served by server
       HASURA_GRAPHQL_ENABLE_CONSOLE: "true" # set to "false" to disable console
       ## enable debugging mode. It is recommended to disable this in production
@@ -23,11 +31,12 @@ services:
       HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
       ## uncomment next line to run console offline (i.e load console assets from server instead of CDN)
       # HASURA_GRAPHQL_CONSOLE_ASSETS_DIR: /srv/console-assets
-      ## uncomment next line to set an admin secret
-      # HASURA_GRAPHQL_ADMIN_SECRET: myadminsecretkey
+      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET:-myadminsecretkey}
       HASURA_GRAPHQL_METADATA_DEFAULTS: '{"backend_configs":{"dataconnector":{"athena":{"uri":"http://data-connector-agent:8081/api/v1/athena"},"mariadb":{"uri":"http://data-connector-agent:8081/api/v1/mariadb"},"mysql8":{"uri":"http://data-connector-agent:8081/api/v1/mysql"},"oracle":{"uri":"http://data-connector-agent:8081/api/v1/oracle"},"snowflake":{"uri":"http://data-connector-agent:8081/api/v1/snowflake"}}}}'
     depends_on:
       data-connector-agent:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
   data-connector-agent:
     image: hasura/graphql-data-connector:v2.46.0
@@ -45,5 +54,29 @@ services:
       timeout: 10s
       retries: 5
       start_period: 5s
+  ## one-shot ETL job: internet dataset -> DuckDB warehouse -> Parquet staging -> Postgres.
+  ## not started by `docker compose up` (profile-gated); run it with:
+  ##   docker compose run --rm exporter              # full pipeline
+  ##   docker compose run --rm exporter --inspect    # quick look at warehouse contents
+  exporter:
+    build: ./exporter
+    profiles: ["etl"]
+    restart: "no"
+    environment:
+      PG_ADMIN_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgrespassword}@postgres:5432/postgres
+      PG_EXPORTER_URL: postgres://exporter_role:${EXPORTER_PASSWORD:-exporterpassword}@postgres:5432/postgres
+      EXPORTER_PASSWORD: ${EXPORTER_PASSWORD:-exporterpassword}
+      DUCKDB_PATH: /warehouse/analytics.duckdb
+      STAGING_DIR: /staging
+      DUCKDB_MEMORY_LIMIT: 1GB
+    mem_limit: 2g
+    volumes:
+      - warehouse:/warehouse
+      - staging:/staging
+    depends_on:
+      postgres:
+        condition: service_healthy
 volumes:
   db_data:
+  warehouse:
+  staging:
