@@ -1,0 +1,231 @@
+{
+    "version": 3,
+    "sources": [
+        {
+            "name": "pgdb",
+            "kind": "postgres",
+            "tables": [
+                {
+                    "table": {
+                        "name": "_export_runs",
+                        "schema": "analytics"
+                    },
+                    "select_permissions": [
+                        {
+                            "role": "ops",
+                            "permission": {
+                                "columns": [
+                                    "run_id",
+                                    "started_at",
+                                    "finished_at",
+                                    "status",
+                                    "rows_loaded",
+                                    "error"
+                                ],
+                                "filter": {},
+                                "allow_aggregations": true
+                            },
+                            "comment": "pipeline observability - ops only, analyst has no access"
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "name": "payment_daily_stats",
+                        "schema": "analytics"
+                    },
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": [
+                                    "payment_type",
+                                    "day",
+                                    "trips",
+                                    "total_amount"
+                                ],
+                                "filter": {},
+                                "allow_aggregations": true
+                            },
+                            "comment": "read-only analytics consumer"
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "name": "taxi_zones",
+                        "schema": "analytics"
+                    },
+                    "array_relationships": [
+                        {
+                            "name": "zone_daily_stats",
+                            "using": {
+                                "foreign_key_constraint_on": {
+                                    "column": "zone_id",
+                                    "table": {
+                                        "name": "zone_daily_stats",
+                                        "schema": "analytics"
+                                    }
+                                }
+                            }
+                        }
+                    ],
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": [
+                                    "zone_id",
+                                    "borough",
+                                    "zone_name",
+                                    "service_zone"
+                                ],
+                                "filter": {},
+                                "allow_aggregations": true
+                            },
+                            "comment": "read-only analytics consumer"
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "name": "zone_daily_stats",
+                        "schema": "analytics"
+                    },
+                    "object_relationships": [
+                        {
+                            "name": "taxi_zone",
+                            "using": {
+                                "foreign_key_constraint_on": "zone_id"
+                            }
+                        }
+                    ],
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": [
+                                    "zone_id",
+                                    "day",
+                                    "trips",
+                                    "total_revenue",
+                                    "avg_distance_km",
+                                    "avg_tip_pct"
+                                ],
+                                "filter": {},
+                                "allow_aggregations": true
+                            },
+                            "comment": "read-only analytics consumer"
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "name": "roles",
+                        "schema": "public"
+                    }
+                },
+                {
+                    "table": {
+                        "name": "users",
+                        "schema": "public"
+                    },
+                    "object_relationships": [
+                        {
+                            "name": "user_roles",
+                            "using": {
+                                "manual_configuration": {
+                                    "column_mapping": {
+                                        "role": "role"
+                                    },
+                                    "insertion_order": null,
+                                    "remote_table": {
+                                        "name": "roles",
+                                        "schema": "public"
+                                    }
+                                }
+                            }
+                        }
+                    ],
+                    "insert_permissions": [
+                        {
+                            "role": "underage_user",
+                            "permission": {
+                                "check": {
+                                    "id": {
+                                        "_eq": "X-Hasura-User-Id"
+                                    }
+                                },
+                                "set": {
+                                    "id": "x-hasura-User-Id"
+                                },
+                                "columns": [
+                                    "dob",
+                                    "id"
+                                ]
+                            },
+                            "comment": ""
+                        }
+                    ],
+                    "select_permissions": [
+                        {
+                            "role": "underage_user",
+                            "permission": {
+                                "columns": [
+                                    "dob",
+                                    "id",
+                                    "is_public",
+                                    "name",
+                                    "role"
+                                ],
+                                "filter": {
+                                    "_or": [
+                                        {
+                                            "is_public": {
+                                                "_eq": true
+                                            }
+                                        },
+                                        {
+                                            "id": {
+                                                "_eq": "X-Hasura-User-Id"
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "comment": ""
+                        }
+                    ]
+                }
+            ],
+            "configuration": {
+                "connection_info": {
+                    "database_url": {
+                        "from_env": "PG_DATABASE_URL"
+                    },
+                    "isolation_level": "read-committed",
+                    "use_prepared_statements": false
+                }
+            }
+        }
+    ],
+    "backend_configs": {
+        "dataconnector": {
+            "athena": {
+                "uri": "http://data-connector-agent:8081/api/v1/athena"
+            },
+            "mariadb": {
+                "uri": "http://data-connector-agent:8081/api/v1/mariadb"
+            },
+            "mysql8": {
+                "uri": "http://data-connector-agent:8081/api/v1/mysql"
+            },
+            "oracle": {
+                "uri": "http://data-connector-agent:8081/api/v1/oracle"
+            },
+            "snowflake": {
+                "uri": "http://data-connector-agent:8081/api/v1/snowflake"
+            }
+        }
+    }
+}
