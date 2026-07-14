@@ -84,6 +84,22 @@
                                 "allow_aggregations": true
                             },
                             "comment": "read-only analytics consumer"
+                        },
+                        {
+                            "role": "kiosk",
+                            "permission": {
+                                "columns": [
+                                    "zone_id",
+                                    "zone_name",
+                                    "borough"
+                                ],
+                                "filter": {
+                                    "borough": {
+                                        "_eq": "X-Hasura-Borough"
+                                    }
+                                }
+                            },
+                            "comment": "embedded kiosk devices - rows limited to the borough claimed in the JWT"
                         }
                     ]
                 },

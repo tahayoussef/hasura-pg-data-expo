@@ -1,7 +1,8 @@
 # Plan: Internet Data → DuckDB Warehouse → Postgres → Hasura (BigQuery stand-in: DuckDB)
 
-**Status: Phases 0–2 implemented and verified (2026-07-13). Phase 3 (hardening) pending.**
+**Status: Phases 0–2 implemented and verified (2026-07-13). Phase 3 (hardening) dropped for now.**
 **Phase 2 details and demo queries: see `02-analytics-graphql.md`. Metadata lives in `hasura/metadata.json`.**
+**Multi-app consumer simulation (JWT auth, per-app roles) + IaC provisioning map: see `03-multi-app-consumers.md`.**
 
 ## Runbook
 
