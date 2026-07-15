@@ -6,6 +6,9 @@
 CREATE SCHEMA IF NOT EXISTS analytics;
 CREATE SCHEMA IF NOT EXISTS analytics_stage;
 
+-- per-statement call counts/timings for Grafana (library preloaded via compose command)
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+
 -- ---- published marts (what Hasura tracks) ----------------------------------
 
 CREATE TABLE IF NOT EXISTS analytics.taxi_zones (
@@ -74,3 +77,11 @@ ALTER TABLE analytics._export_runs        OWNER TO exporter_role;
 ALTER TABLE analytics_stage.taxi_zones          OWNER TO exporter_role;
 ALTER TABLE analytics_stage.zone_daily_stats    OWNER TO exporter_role;
 ALTER TABLE analytics_stage.payment_daily_stats OWNER TO exporter_role;
+
+-- ---- observability reader: Grafana's datasource role -----------------------
+-- pg_monitor grants read access to pg_stat_activity / pg_stat_statements;
+-- SELECT on analytics.* covers the run ledger and mart dashboards. Nothing else.
+
+GRANT pg_monitor TO grafana_reader;
+GRANT USAGE ON SCHEMA analytics TO grafana_reader;
+GRANT SELECT ON ALL TABLES IN SCHEMA analytics TO grafana_reader;

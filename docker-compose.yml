@@ -2,6 +2,9 @@ services:
   postgres:
     image: postgres:15
     restart: always
+    ## pg_stat_statements gives Grafana per-statement call counts/timings for
+    ## every query Hasura sends to the database
+    command: ["postgres", "-c", "shared_preload_libraries=pg_stat_statements"]
     volumes:
       - db_data:/var/lib/postgresql/data
     environment:
@@ -68,6 +71,7 @@ services:
       PG_ADMIN_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgrespassword}@postgres:5432/postgres
       PG_EXPORTER_URL: postgres://exporter_role:${EXPORTER_PASSWORD:-exporterpassword}@postgres:5432/postgres
       EXPORTER_PASSWORD: ${EXPORTER_PASSWORD:-exporterpassword}
+      GRAFANA_READER_PASSWORD: ${GRAFANA_READER_PASSWORD:-grafanareader}
       DUCKDB_PATH: /warehouse/analytics.duckdb
       STAGING_DIR: /staging
       DUCKDB_MEMORY_LIMIT: 1GB
@@ -78,7 +82,25 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+  ## observability: Grafana reads Postgres directly (Hasura OSS has no /v1/metrics —
+  ## that endpoint is Enterprise-only). Dashboard + datasource are provisioned as code.
+  grafana:
+    image: grafana/grafana:11.1.0
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-grafana}
+      GRAFANA_READER_PASSWORD: ${GRAFANA_READER_PASSWORD:-grafanareader}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
 volumes:
   db_data:
   warehouse:
   staging:
+  grafana_data:

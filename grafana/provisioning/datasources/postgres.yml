@@ -1,0 +1,20 @@
+# Provisioned as code — no clicking in the Grafana UI.
+# $GRAFANA_READER_PASSWORD is interpolated by Grafana from the container env.
+apiVersion: 1
+datasources:
+  - name: HasuraPostgres
+    uid: hasura-pg
+    type: postgres
+    access: proxy
+    url: postgres:5432
+    user: grafana_reader
+    isDefault: true
+    editable: false
+    secureJsonData:
+      password: $GRAFANA_READER_PASSWORD
+    jsonData:
+      database: postgres
+      sslmode: disable
+      postgresVersion: 1500
+      timescaledb: false
+      maxOpenConns: 4

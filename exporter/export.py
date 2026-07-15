@@ -31,6 +31,7 @@ STAGING_DIR = environ.get("STAGING_DIR", "/staging")
 PG_ADMIN_URL = environ.get("PG_ADMIN_URL", "")
 PG_EXPORTER_URL = environ.get("PG_EXPORTER_URL", "")
 EXPORTER_PASSWORD = environ.get("EXPORTER_PASSWORD", "")
+GRAFANA_READER_PASSWORD = environ.get("GRAFANA_READER_PASSWORD", "")
 MEMORY_LIMIT = environ.get("DUCKDB_MEMORY_LIMIT", "1GB")
 KEEP_STAGING_RUNS = 5
 
@@ -99,19 +100,21 @@ def connect_duckdb(read_only=False):
 def bootstrap_postgres():
     """Idempotent: role (password from env, can't live in bootstrap.sql), schemas, tables, grants."""
     ddl = (Path(__file__).parent / "sql" / "bootstrap.sql").read_text(encoding="utf-8")
+    roles = [("exporter_role", EXPORTER_PASSWORD), ("grafana_reader", GRAFANA_READER_PASSWORD)]
     with psycopg.connect(PG_ADMIN_URL) as conn:
-        conn.execute("""
-            DO $$ BEGIN
-                IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'exporter_role') THEN
-                    CREATE ROLE exporter_role LOGIN;
-                END IF;
-            END $$;
-        """)
-        conn.execute(
-            sql.SQL("ALTER ROLE exporter_role WITH LOGIN PASSWORD {pw}").format(
-                pw=sql.Literal(EXPORTER_PASSWORD)
+        for name, password in roles:
+            conn.execute(f"""
+                DO $$ BEGIN
+                    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '{name}') THEN
+                        CREATE ROLE {name} LOGIN;
+                    END IF;
+                END $$;
+            """)
+            conn.execute(
+                sql.SQL("ALTER ROLE {role} WITH LOGIN PASSWORD {pw}").format(
+                    role=sql.Identifier(name), pw=sql.Literal(password)
+                )
             )
-        )
         conn.execute(ddl)
     log.info("bootstrap: postgres schemas/tables/role ready")
 

@@ -1,0 +1,188 @@
+{
+  "uid": "hasura-observability",
+  "title": "Hasura Observability",
+  "tags": ["hasura", "pipeline"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "2024-01-01T00:00:00.000Z", "to": "2024-02-01T00:00:00.000Z" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Last export run",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "hasura-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "hasura-pg" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT status FROM analytics._export_runs ORDER BY started_at DESC LIMIT 1;"
+        }
+      ],
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "value" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "success": { "color": "green", "index": 0 },
+                "failed": { "color": "red", "index": 1 },
+                "running": { "color": "yellow", "index": 2 }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Export runs (24h)",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "hasura-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "hasura-pg" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT count(*)::int AS runs FROM analytics._export_runs WHERE started_at > now() - interval '24 hours';"
+        }
+      ],
+      "options": { "colorMode": "value", "graphMode": "none" },
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "DB connections (live)",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "hasura-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "hasura-pg" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT count(*)::int AS connections FROM pg_stat_activity WHERE datname = 'postgres';"
+        }
+      ],
+      "options": { "colorMode": "value", "graphMode": "none" },
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Statements tracked",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "hasura-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "hasura-pg" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT count(*)::int AS statements FROM pg_stat_statements;"
+        }
+      ],
+      "options": { "colorMode": "value", "graphMode": "none" },
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 5,
+      "type": "table",
+      "title": "Recent export runs (pipeline ledger)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "postgres", "uid": "hasura-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "hasura-pg" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT run_id, status, started_at, round(extract(epoch FROM (finished_at - started_at))::numeric, 1) AS duration_s, rows_loaded::text AS rows_loaded, left(error, 80) AS error FROM analytics._export_runs ORDER BY started_at DESC LIMIT 10;"
+        }
+      ],
+      "options": {},
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 6,
+      "type": "table",
+      "title": "Connections by application / state (live)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "postgres", "uid": "hasura-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "hasura-pg" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT coalesce(nullif(application_name, ''), '(unnamed)') AS application, coalesce(state, '-') AS state, count(*)::int AS connections FROM pg_stat_activity WHERE datname = 'postgres' GROUP BY 1, 2 ORDER BY 3 DESC;"
+        }
+      ],
+      "options": {},
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "Top statements by calls — what Hasura sends to Postgres",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 12 },
+      "datasource": { "type": "postgres", "uid": "hasura-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "hasura-pg" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT calls, round(total_exec_time::numeric, 1) AS total_ms, round(mean_exec_time::numeric, 2) AS mean_ms, rows, left(query, 160) AS query FROM pg_stat_statements WHERE query NOT ILIKE '%pg_stat%' AND query NOT ILIKE '%pg_catalog%' ORDER BY calls DESC LIMIT 15;"
+        }
+      ],
+      "options": {},
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Trips per day (analytics.zone_daily_stats)",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 22 },
+      "datasource": { "type": "postgres", "uid": "hasura-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "hasura-pg" },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT day::timestamptz AS \"time\", sum(trips)::bigint AS trips FROM analytics.zone_daily_stats GROUP BY day ORDER BY day;"
+        }
+      ],
+      "options": {},
+      "fieldConfig": { "defaults": { "custom": { "fillOpacity": 12 } }, "overrides": [] }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Revenue per day by borough",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 22 },
+      "datasource": { "type": "postgres", "uid": "hasura-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "hasura-pg" },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT s.day::timestamptz AS \"time\", z.borough AS metric, sum(s.total_revenue)::numeric AS revenue FROM analytics.zone_daily_stats s JOIN analytics.taxi_zones z USING (zone_id) GROUP BY 1, 2 ORDER BY 1;"
+        }
+      ],
+      "options": {},
+      "fieldConfig": { "defaults": { "custom": { "fillOpacity": 12 } }, "overrides": [] }
+    }
+  ]
+}
